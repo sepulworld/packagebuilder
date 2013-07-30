@@ -2,6 +2,9 @@ require 'fpm'
 require 'trollop'
 require 'open3'
 
+$stdout.reopen("packagebuild_output.log", "w")
+$stderr.reopen("packagebuild_err.log", "w")
+
   opts = Trollop::options do
     opt :giturl, "The github url to clone from", :type => :string
     opt :ver, "The branch or tag referenced in git repo", :type => :string
@@ -39,25 +42,55 @@ def packagebuild( version, giturl )
 
 	puts "running autogen.sh with --prefix=/usr/local"
 	stdout, stderr, status = Open3.capture3("cd ~/#{version} && ./autogen.sh --prefix=/usr/local")
+	STDERR.puts stderr
 	if status.success?
 		puts stdout
 		puts "autgen complete!"
 	else
 		STDERR.puts "OH NO! Error, autogen failed."
 	end
-#	puts "running make..."
-#	stdout, stderr = Open3.popen3("cd ~/#{version} && make -j8")
 
-#	puts "Preparing temporary install directory..."
-#	stdout, stderr = Open3.popen3("rm -rf /tmp/installdir && mkdir -p /tmp/installdir")
+	puts "running make..."
+	stdout, stderr, status = Open3.capture3("cd ~/#{version} && make -j8")
+	STDERR.puts stderr
+	if status.success?
+		puts stdout
+		puts "make complete!"
+	else
+		STDERR.puts "OH NO! Error, make failed."
+	end
 
-#	puts "Running make install and building into temp directory..."
-#	stdout, stderr = Open3.popen3("cd ~/#{version} && make -j8 install DESTDIR=/tmp/installdir && cd ..")
+	puts "Preparing temporary install directory..."
+	stdout, stderr, status = Open3.capture3("rm -rf /tmp/installdir && mkdir -p /tmp/installdir")
+	STDERR.puts stderr
+	if status.success?
+		puts stdout
+		puts "prepared temp install dirctory..."
+	else
+		STDERR.puts "OH NO! Error, unable to create temp install directory"
+	end
 
-#	puts "Building package using fpm builder... "
-#	stdout, stderr = Open3.popen3("cd ~/ && fpm -s dir -t deb -n mono -v #{version}-git-master-#{month}#{day}#{year} -C /tmp/installdir usr/local")
+	puts "Running make install and building into temp directory..."
+	stdout, stderr, status = Open3.capture3("cd ~/#{version} && make -j8 install DESTDIR=/tmp/installdir && cd ..")
+	STDERR.puts stderr
+	if status.success?
+		puts stdout
+		puts "make install completed..."
+	else
+		STDERR.puts "OH NO! Error, unable to complete make install"
+	end
 
-#	puts "Done building package"
+	puts "Building package using fpm builder... "
+	stdout, stderr, status = Open3.capture3("cd ~/ && fpm -s dir -t deb -n mono -v #{version}-git-master-#{month}#{day}#{year} -C /tmp/installdir usr/local")
+	STDERR.puts stderr
+	if status.success?
+		puts stdout
+		puts "FPM package build complete"
+	else
+		STDERR.puts "OH NO! Error, unable to complete FPM package build"
+	end
+
+	puts "Done building package, check logs for details."
 end
 
 
